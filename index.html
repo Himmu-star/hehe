@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Message From My Heart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #ff69b4; /* Hot Pink */
+            --secondary-color: #ff1493; /* Deep Pink */
+            --glow-color: rgba(255, 105, 180, 0.8);
+            --bg-color: #0c001f; /* Deep Indigo */
+            --text-color: #f0f8ff; /* Alice Blue */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        #three-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            outline: none;
+            z-index: 1;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100vh;
+            pointer-events: none; /* Allow interaction with canvas */
+        }
+        
+        .content-wrapper > * {
+             pointer-events: auto; /* Re-enable pointer events for text */
+        }
+
+        .action-button {
+            background: transparent;
+            border: 2px solid var(--primary-color);
+            color: var(--text-color);
+            padding: 0.75rem 1.5rem;
+            font-family: 'Poppins', sans-serif;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 2rem;
+            text-shadow: 0 0 5px var(--glow-color);
+            box-shadow: 0 0 10px var(--glow-color) inset, 0 0 8px var(--glow-color);
+            transition: all 0.3s ease;
+            opacity: 0; /* Initially hidden */
+            transform: translateY(20px);
+        }
+
+        .action-button:hover {
+            background-color: var(--glow-color);
+            color: var(--bg-color);
+            transform: translateY(20px) scale(1.05);
+        }
+
+        #page2 h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(1.8rem, 8vw, 4rem);
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 0 10px var(--glow-color);
+            margin-bottom: 1rem;
+        }
+
+        #page2 p {
+            font-size: clamp(1rem, 4vw, 1.5rem);
+            margin-bottom: 0.5rem;
+            max-width: 600px;
+        }
+
+        .main-message {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 10vw, 5rem);
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 0 10px var(--glow-color), 0 0 20px var(--glow-color);
+            margin-bottom: 1.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            border-right: .15em solid var(--primary-color);
+            animation: typing 3.5s steps(30, end) 1s forwards, blink-caret .75s step-end infinite;
+            width: 0;
+            opacity: 0;
+            animation-delay: 1s, 1s;
+        }
+
+        @keyframes typing {
+            from { width: 0; opacity: 1; }
+            to { width: 100%; opacity: 1; }
+        }
+        
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: var(--primary-color); }
+        }
+
+        .hidden-messages {
+            margin-top: 1rem;
+            height: 80px; 
+        }
+        
+        .hidden-messages p {
+            font-size: clamp(1rem, 4vw, 1.5rem);
+            font-weight: 300;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease, transform 1s ease;
+            text-shadow: 0 0 5px var(--glow-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="three-canvas"></div>
+
+    <div id="page1" class="content-wrapper">
+        <h1 id="mainMessage" class="main-message">I Love You</h1>
+
+        <div id="hiddenMessages" class="hidden-messages">
+            <p id="msg1">Beyond all the stars.</p>
+            <p id="msg2">More than words can say.</p>
+            <p id="msg3">Infinitely.</p>
+        </div>
+        <button id="nextPageButton" class="action-button">For You</button>
+    </div>
+
+    <div id="page2" class="content-wrapper" style="display: none; opacity: 0;">
+        <h2>Just a little more...</h2>
+        <p>Every moment with you is a universe of its own.</p>
+        <p>Thank you for being you.</p>
+        <button id="prevPageButton" class="action-button">Go Back</button>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- THREE.js Setup ---
+            const container = document.getElementById('three-canvas');
+            let scene, camera, renderer, heartParticles, starField;
+            let mouseX = 0, mouseY = 0;
+            let windowHalfX = window.innerWidth / 2;
+            let windowHalfY = window.innerHeight / 2;
+
+            function initThree() {
+                scene = new THREE.Scene();
+                
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.z = 25;
+
+                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setClearColor(0x000000, 0);
+                container.appendChild(renderer.domElement);
+                
+                // --- Heart Particles ---
+                const heartShape = new THREE.Shape();
+                heartShape.moveTo( 2.5, 2.5 );
+                heartShape.bezierCurveTo( 2.5, 2.5, 2, 0, 0, 0 );
+                heartShape.bezierCurveTo( -3, 0, -3, 3.5, -3, 3.5 );
+                heartShape.bezierCurveTo( -3, 5.5, -1, 7.7, 2.5, 9.5 );
+                heartShape.bezierCurveTo( 6, 7.7, 8, 5.5, 8, 3.5 );
+                heartShape.bezierCurveTo( 8, 3.5, 8, 0, 5, 0 );
+                heartShape.bezierCurveTo( 3.5, 0, 2.5, 2.5, 2.5, 2.5 );
+
+                const geometry = new THREE.BufferGeometry();
+                const vertices = [];
+                const numPoints = 5000;
+                const heartPoints = heartShape.getPoints(numPoints / 10);
+                const extrudeSettings = { depth: 2, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
+                const extrudeGeometry = new THREE.ExtrudeGeometry( heartShape, extrudeSettings );
+                
+                const positionAttribute = extrudeGeometry.attributes.position;
+                for (let i = 0; i < numPoints; i++) {
+                    const idx = Math.floor(Math.random() * positionAttribute.count);
+                    const x = positionAttribute.getX(idx) + (Math.random() - 0.5) * 0.5;
+                    const y = positionAttribute.getY(idx) + (Math.random() - 0.5) * 0.5;
+                    const z = positionAttribute.getZ(idx) + (Math.random() - 0.5) * 4;
+                    vertices.push(x, y, z);
+                }
+
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                
+                const heartMaterial = new THREE.PointsMaterial({
+                    color: 0xff69b4,
+                    size: 0.15,
+                    blending: THREE.AdditiveBlending,
+                    transparent: true,
+                    depthWrite: false,
+                    map: createParticleTexture(),
+                });
+                
+                heartParticles = new THREE.Points(geometry, heartMaterial);
+                heartParticles.rotation.x = Math.PI;
+                heartParticles.scale.set(1.5, 1.5, 1.5);
+                scene.add(heartParticles);
+                
+                // --- Starfield ---
+                const starGeometry = new THREE.BufferGeometry();
+                const starVertices = [];
+                for (let i = 0; i < 10000; i++) {
+                    const x = (Math.random() - 0.5) * 200;
+                    const y = (Math.random() - 0.5) * 200;
+                    const z = (Math.random() - 0.5) * 200;
+                    starVertices.push(x, y, z);
+                }
+                starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+                
+                const starMaterial = new THREE.PointsMaterial({
+                    color: 0xffffff,
+                    size: 0.1,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                
+                starField = new THREE.Points(starGeometry, starMaterial);
+                scene.add(starField);
+
+                // --- Event Listeners ---
+                document.addEventListener('mousemove', onDocumentMouseMove, false);
+                document.addEventListener('touchstart', onDocumentTouchStart, false);
+                document.addEventListener('touchmove', onDocumentTouchMove, false);
+                window.addEventListener('resize', onWindowResize, false);
+            }
+            
+            function createParticleTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 32;
+                canvas.height = 32;
+                const context = canvas.getContext('2d');
+                const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+                gradient.addColorStop(0, 'rgba(255,255,255,1)');
+                gradient.addColorStop(0.2, 'rgba(255,105,180,1)');
+                gradient.addColorStop(0.4, 'rgba(255,20,147,0.5)');
+                gradient.addColorStop(1, 'rgba(0,0,0,0)');
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, 32, 32);
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            function onWindowResize() {
+                windowHalfX = window.innerWidth / 2;
+                windowHalfY = window.innerHeight / 2;
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            function onDocumentMouseMove(event) {
+                mouseX = (event.clientX - windowHalfX) / 2;
+                mouseY = (event.clientY - windowHalfY) / 2;
+            }
+            
+             function onDocumentTouchStart(event) {
+                if (event.touches.length === 1) {
+                    mouseX = (event.touches[0].pageX - windowHalfX) / 2;
+                    mouseY = (event.touches[0].pageY - windowHalfY) / 2;
+                }
+            }
+            
+            function onDocumentTouchMove(event) {
+                if (event.touches.length === 1) {
+                    mouseX = (event.touches[0].pageX - windowHalfX) / 2;
+                    mouseY = (event.touches[0].pageY - windowHalfY) / 2;
+                }
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+                render();
+            }
+
+            function render() {
+                const time = Date.now() * 0.0005;
+                
+                camera.position.x += (mouseX/50 - camera.position.x) * 0.05;
+                camera.position.y += (-mouseY/50 - camera.position.y) * 0.05;
+                camera.lookAt(scene.position);
+
+                heartParticles.rotation.y = time * 0.5;
+                
+                const positions = heartParticles.geometry.attributes.position.array;
+                for (let i = 0; i < positions.length; i += 3) {
+                     positions[i+1] += Math.sin(time + i) * 0.005;
+                }
+                heartParticles.geometry.attributes.position.needsUpdate = true;
+                
+                starField.rotation.y = time * 0.05;
+                starField.rotation.x = time * 0.05;
+
+                renderer.render(scene, camera);
+            }
+
+            initThree();
+            animate();
+
+            // --- UI Animation Logic ---
+            const mainMessage = document.getElementById('mainMessage');
+            const hiddenMessages = [
+                document.getElementById('msg1'),
+                document.getElementById('msg2'),
+                document.getElementById('msg3')
+            ];
+            const nextPageButton = document.getElementById('nextPageButton');
+            const page1 = document.getElementById('page1');
+            const page2 = document.getElementById('page2');
+            const prevPageButton = document.getElementById('prevPageButton');
+
+
+            // After typing animation (3.5s + 1s delay)
+            setTimeout(() => {
+                mainMessage.style.borderRight = 'none'; // Remove cursor
+                
+                let delay = 500;
+                hiddenMessages.forEach((msg, index) => {
+                    setTimeout(() => {
+                        msg.style.opacity = '1';
+                        msg.style.transform = 'translateY(0)';
+                    }, delay * (index + 1));
+                });
+
+                // Show the button after the last message
+                setTimeout(() => {
+                    nextPageButton.style.transition = 'opacity 1s ease, transform 1s ease';
+                    nextPageButton.style.opacity = '1';
+                    nextPageButton.style.transform = 'translateY(0)';
+                }, delay * (hiddenMessages.length + 1.5));
+
+
+            }, 4500); 
+
+            // --- Page Transition Logic ---
+            nextPageButton.addEventListener('click', () => {
+                page1.style.transition = 'opacity 0.5s ease';
+                page1.style.opacity = '0';
+                setTimeout(() => {
+                    page1.style.display = 'none';
+                    page2.style.display = 'flex';
+                    setTimeout(() => {
+                        page2.style.transition = 'opacity 0.5s ease';
+                        page2.style.opacity = '1';
+                    }, 50);
+                }, 500);
+            });
+
+            prevPageButton.addEventListener('click', () => {
+                page2.style.transition = 'opacity 0.5s ease';
+                page2.style.opacity = '0';
+                setTimeout(() => {
+                    page2.style.display = 'none';
+                    page1.style.display = 'flex';
+                    setTimeout(() => {
+                        page1.style.transition = 'opacity 0.5s ease';
+                        page1.style.opacity = '1';
+                    }, 50);
+                }, 500);
+            });
+        });
+    </script>
+</body>
+</html>
+
